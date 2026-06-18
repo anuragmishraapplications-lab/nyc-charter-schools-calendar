@@ -60,6 +60,10 @@
   /* schools-off heat */
   .day.o1{background:var(--off1)}.day.o2{background:var(--off2)}.day.o3{background:var(--off3);color:#1E1B4B}
   .day.o4{background:var(--off4);color:#fff}.day.o5{background:var(--off5);color:#fff}
+  /* DoE district-wide first / last day (solid, stands out from per-school bars) */
+  .day.doefirst{background:var(--first);color:#fff;box-shadow:none;font-weight:700}
+  .day.doelast{background:var(--last);color:#fff;box-shadow:none;font-weight:700}
+  .day.doefirst .cnt,.day.doelast .cnt{background:#0F172A}
   /* count badge */
   .cnt{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--off5);color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25);font-family:'Fira Sans',sans-serif}
   /* DoE holiday ring + dot */
@@ -85,6 +89,7 @@
   .doepill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-bottom:14px}
   .doepill.closed{background:var(--doe-soft);color:var(--doe)}
   .doepill.open{background:#ECFDF5;color:#047857}
+  .doepill.pre{background:#F1F5F9;color:#475569}
   .doepill .pdot{width:8px;height:8px;border-radius:50%}
   .counts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .cstat{flex:1;min-width:80px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;text-align:center}
@@ -160,6 +165,14 @@ function doeSets(key){const ev=D.doe[key],closed={},remote={},weekend={},name={}
   return {ev,closed,remote,weekend,name};}
 const DOE25=doeSets('2025'),DOE26=doeSets('2026');
 const PRED={};D.predict2026.forEach(p=>expand(p.start,p.end).forEach(d=>PRED[d]=p));
+// DoE status for a date: summer (pre) / in session / closed holiday / year ended (post)
+function doeState(ds,doe){
+  if(doe.closed[ds])return'closed';
+  if(doe.remote[ds])return'remote';
+  if(ds<doe.ev.firstDay)return'pre';
+  if(ds>doe.ev.lastDay)return'post';
+  return'in';
+}
 
 // buckets for a 2025-26 weekday
 function buckets(dstr){
@@ -189,10 +202,16 @@ function cellInfo(dstr){
   const cls=[],marks=[];let badge=null,clk=false,tipL=['<b>'+weekdayName(dstr)+', '+nice(dstr)+'</b>'];
   if(we){cls.push('we');return {cls,marks,badge,clk:false,tip:''};}
   if(state.tab==='2025'){
-    const b=buckets(dstr);
-    if(b.closed.length){cls.push(offClass(b.closed.length));badge=b.closed.length;tipL.push(b.closed.length+' of '+N+' schools closed');}
-    else tipL.push('All '+N+' schools in session');
-    if(DOE25.closed[dstr]){cls.push('doe');marks.push('<span class="ddot"></span>');tipL.push('DoE closed — '+DOE25.name[dstr]);}
+    const b=buckets(dstr),st=doeState(dstr,DOE25);
+    if(b.closed.length){cls.push(offClass(b.closed.length));badge=b.closed.length;tipL.push(b.closed.length+' of '+N+' schools closed'+(b.open.length?', '+b.open.length+' open':''));}
+    else if(b.open.length)tipL.push('All '+b.open.length+' in-session schools open');
+    else if(b.pre.length===N)tipL.push('No charter in session yet (summer)');
+    else if(b.post.length===N)tipL.push('All charter school years have ended');
+    if(st==='closed'){cls.push('doe');marks.push('<span class="ddot"></span>');tipL.push('DoE closed — '+DOE25.name[dstr]);}
+    else if(st==='pre')tipL.push('DoE: summer break (not in session)');
+    else if(st==='post')tipL.push('DoE: school year ended');
+    if(dstr===DOE25.ev.firstDay){cls.push('doefirst');tipL.push('★ DoE FIRST day of school');}
+    if(dstr===DOE25.ev.lastDay){cls.push('doelast');tipL.push('★ DoE LAST day of school');}
     const f=FIRSTBY[dstr],l=LASTBY[dstr];
     if(f&&l)marks.push('<span class="mk firstlast"></span>');
     else if(f)marks.push('<span class="mk first"></span>');
@@ -205,8 +224,8 @@ function cellInfo(dstr){
     if(DOE26.closed[dstr]&&p){cls.push('pt'+p.tier);if(p.predictedPct!=null){badge='~'+Math.round(p.predictedPct/100*N);}tipL.push('DoE: '+DOE26.name[dstr]);tipL.push('Predicted '+(p.predictedPct==null?'unknown':p.predictedPct+'% of charters closed'));clk=true;}
     else if(DOE26.remote[dstr]){cls.push('pt3');tipL.push('DoE: '+DOE26.name[dstr]);tipL.push('Remote / in session');clk=true;}
     else if(DOE26.weekend[dstr]){cls.push('pweek');tipL.push(DOE26.name[dstr]+' — weekend');clk=true;}
-    if(dstr===DOE26.ev.firstDay){marks.push('<span class="mk first"></span>');tipL.push('▸ DoE first day');clk=true;}
-    if(dstr===DOE26.ev.lastDay){marks.push('<span class="mk last"></span>');tipL.push('▸ DoE last day');clk=true;}
+    if(dstr===DOE26.ev.firstDay){cls.push('doefirst');tipL.push('★ DoE FIRST day of school');clk=true;}
+    if(dstr===DOE26.ev.lastDay){cls.push('doelast');tipL.push('★ DoE LAST day of school');clk=true;}
   }
   return {cls,marks,badge,clk,tip:tipL.join('<br>')};
 }
@@ -241,8 +260,10 @@ function renderLegend(){
   if(state.tab==='2025'){
     L.innerHTML='<div class="lg"><span>Schools closed:</span><span class="scalebar"><span class="lgsw" style="background:var(--off1)"></span><span class="lgsw" style="background:var(--off2)"></span><span class="lgsw" style="background:var(--off3)"></span><span class="lgsw" style="background:var(--off4)"></span><span class="lgsw" style="background:var(--off5)"></span></span><span>few → many</span></div>'
       +'<div class="lg"><span class="lgsw" style="box-shadow:inset 0 0 0 2px var(--doe);background:#fff"></span>DoE closed</div>'
-      +'<div class="lg"><span class="lgsw" style="background:var(--first)"></span>A school\'s first day</div>'
-      +'<div class="lg"><span class="lgsw" style="background:var(--last)"></span>A school\'s last day</div>';
+      +'<div class="lg"><span class="lgsw" style="background:var(--first)"></span><b style="color:var(--first)">DoE first day</b></div>'
+      +'<div class="lg"><span class="lgsw" style="background:var(--last)"></span><b style="color:var(--last)">DoE last day</b></div>'
+      +'<div class="lg"><span style="display:inline-block;width:16px;height:5px;border-radius:3px;background:var(--first)"></span>a school starts</div>'
+      +'<div class="lg"><span style="display:inline-block;width:16px;height:5px;border-radius:3px;background:var(--last)"></span>a school ends</div>';
   } else {
     L.innerHTML='<div class="lg"><span class="lgsw" style="background:var(--t1s);box-shadow:inset 0 0 0 2px var(--t1)"></span>Tier 1 — assume same as DoE</div>'
       +'<div class="lg"><span class="lgsw" style="background:var(--t2s);box-shadow:inset 0 0 0 2px var(--t2)"></span>Tier 2 — likely</div>'
@@ -260,8 +281,14 @@ function select(ds){
   const b=document.getElementById('panelBody');
   let h='<div class="dweek">'+weekdayName(ds)+'</div><div class="ddate">'+nice(ds)+'</div>';
   if(state.tab==='2025'){
-    const bk=buckets(ds),doe=DOE25.closed[ds];
-    h+='<div class="doepill '+(doe?'closed':'open')+'"><span class="pdot" style="background:'+(doe?'var(--doe)':'#10B981')+'"></span>'+(doe?'DoE closed — '+DOE25.name[ds]:'DoE in session')+'</div>';
+    const bk=buckets(ds),st=doeState(ds,DOE25);
+    let pc='open',pt='DoE in session',pd='#10B981';
+    if(st==='closed'){pc='closed';pt='DoE closed — '+DOE25.name[ds];pd='var(--doe)';}
+    else if(st==='pre'){pc='pre';pt='DoE summer break — opens '+nice(DOE25.ev.firstDay);pd='#94A3B8';}
+    else if(st==='post'){pc='pre';pt='DoE year ended — closed '+nice(DOE25.ev.lastDay);pd='#94A3B8';}
+    else if(ds===DOE25.ev.firstDay){pt='★ DoE first day of school';pd='var(--first)';}
+    else if(ds===DOE25.ev.lastDay){pt='★ DoE last day of school';pd='var(--last)';}
+    h+='<div class="doepill '+pc+'"><span class="pdot" style="background:'+pd+'"></span>'+pt+'</div>';
     h+='<div class="counts"><div class="cstat on"><div class="n">'+bk.open.length+'</div><div class="k">in session</div></div><div class="cstat off"><div class="n">'+bk.closed.length+'</div><div class="k">closed</div></div>'
       +(bk.pre.length?'<div class="cstat"><div class="n">'+bk.pre.length+'</div><div class="k">not started</div></div>':'')
       +(bk.post.length?'<div class="cstat"><div class="n">'+bk.post.length+'</div><div class="k">year ended</div></div>':'')+'</div>';

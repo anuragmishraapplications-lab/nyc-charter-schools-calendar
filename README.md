@@ -1,6 +1,6 @@
 # NYC Charter Schools Calendar
 
-An interactive calendar that shows how **54 NYC charter schools** align to the **NYC DoE** calendar — and projects charter holidays for the year ahead.
+An interactive calendar that shows how **53 NYC charter schools** align to the **NYC DoE** calendar — and projects charter holidays for the year ahead.
 
 **Live site:** https://anuragmishraapplications-lab.github.io/nyc-charter-schools-calendar/
 
