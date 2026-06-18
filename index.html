@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NYC Charter Schools Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --doe:#1D4ED8; --doe-soft:#DBEAFE;
+    --first:#059669; --first-soft:#D1FAE5; --last:#E11D48; --last-soft:#FFE4E6;
+    --off1:#EEF2FF; --off2:#C7D2FE; --off3:#A5B4FC; --off4:#818CF8; --off5:#6366F1;
+    --t1:#059669; --t1s:#D1FAE5; --t2:#D97706; --t2s:#FEF3C7; --t3:#DC2626; --t3s:#FEE2E2;
+    --bg:#F4F6FB; --surface:#fff; --ink:#0F172A; --muted:#64748B; --line:#E5E9F2;
+    --radius:16px; --shadow:0 1px 2px rgba(15,23,42,.05),0 12px 32px -16px rgba(15,23,42,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:'Fira Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:'Fira Code',monospace;font-feature-settings:"tnum"}
+  .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 60px}
+  .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+  h1{font-size:24px;font-weight:700;margin:0;letter-spacing:-.015em}
+  .hint{font-size:13px;color:var(--muted);margin:4px 0 0}
+  /* tabs */
+  .tabs{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px;gap:4px;box-shadow:var(--shadow)}
+  .tab{appearance:none;border:0;background:transparent;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);padding:10px 20px;border-radius:999px;transition:all .2s ease;font-feature-settings:"tnum"}
+  .tab[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,#1D4ED8,#3B82F6);box-shadow:0 6px 16px -7px rgba(29,78,216,.8)}
+  .tab:not([aria-selected="true"]):hover{color:var(--ink);background:#F1F5F9}
+  /* layout */
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+  .grid>section,.grid>aside{min-width:0}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .calhead{padding:14px 18px;border-bottom:1px solid var(--line)}
+  .calhead .ttl{font-size:15px;font-weight:700}
+  .legend{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;font-size:12px;color:var(--muted);margin-top:10px}
+  .lg{display:flex;align-items:center;gap:6px}
+  .lgsw{width:15px;height:15px;border-radius:5px;flex:none;border:1px solid rgba(15,23,42,.08)}
+  .lgdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .scalebar{display:flex;gap:3px;align-items:center}
+  .scalebar .lgsw{width:18px;height:11px;border-radius:3px}
+  .calbody{padding:16px 18px;overflow:hidden}
+  .months{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;min-width:0}
+  @media(max-width:1100px){.months{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.months{grid-template-columns:1fr}}
+  .month .mh{font-size:12.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.05em;margin:0 2px 9px;display:flex;justify-content:space-between}
+  .month .mh .yr{color:#94A3B8}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+  .dow span{font-size:10px;text-align:center;color:#94A3B8;font-weight:600}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .day{position:relative;min-width:0;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-family:'Fira Code',monospace;color:#475569;background:#F8FAFC;border:1.5px solid transparent;transition:transform .12s,box-shadow .12s}
+  .day.out{visibility:hidden}
+  .day.we{background:transparent;color:#CBD5E1;font-weight:300}
+  .day.clk{cursor:pointer}
+  .day.clk:hover{transform:translateY(-2px);box-shadow:0 6px 14px -5px rgba(15,23,42,.4);z-index:3}
+  .day.sel{outline:3px solid var(--ink);outline-offset:1px;z-index:4}
+  /* schools-off heat */
+  .day.o1{background:var(--off1)}.day.o2{background:var(--off2)}.day.o3{background:var(--off3);color:#1E1B4B}
+  .day.o4{background:var(--off4);color:#fff}.day.o5{background:var(--off5);color:#fff}
+  /* count badge */
+  .cnt{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--off5);color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25);font-family:'Fira Sans',sans-serif}
+  /* DoE holiday ring + dot */
+  .day.doe{box-shadow:inset 0 0 0 2px var(--doe)}
+  .day.doe .ddot{position:absolute;top:3px;left:3px;width:6px;height:6px;border-radius:50%;background:var(--doe)}
+  /* first / last markers */
+  .mk{position:absolute;bottom:3px;height:4px;border-radius:3px}
+  .mk.first{left:4px;right:4px;background:var(--first)}
+  .mk.last{left:4px;right:4px;background:var(--last)}
+  .mk.firstlast{left:4px;right:4px;background:linear-gradient(90deg,var(--first) 50%,var(--last) 50%)}
+  /* 2026 tiers */
+  .day.pt1{background:var(--t1s);box-shadow:inset 0 0 0 2px var(--t1);color:#065F46}
+  .day.pt2{background:var(--t2s);box-shadow:inset 0 0 0 2px var(--t2);color:#92400E}
+  .day.pt3{background:var(--t3s);box-shadow:inset 0 0 0 2px var(--t3);color:#991B1B;border-style:dashed}
+  .day.pweek{background:#F1F5F9;box-shadow:inset 0 0 0 1.5px #94A3B8;color:#64748B}
+  /* detail panel */
+  #panel{position:sticky;top:18px}
+  #panel .pad{padding:18px}
+  .phint{color:#94A3B8;text-align:center;padding:48px 18px;font-size:14px}
+  .phint svg{display:block;margin:0 auto 12px;opacity:.5}
+  .dweek{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+  .ddate{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:2px 0 12px;font-family:'Fira Code',monospace;overflow-wrap:anywhere}
+  .doepill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px;margin-bottom:14px}
+  .doepill.closed{background:var(--doe-soft);color:var(--doe)}
+  .doepill.open{background:#ECFDF5;color:#047857}
+  .doepill .pdot{width:8px;height:8px;border-radius:50%}
+  .counts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .cstat{flex:1;min-width:80px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;text-align:center}
+  .cstat .n{font-family:'Fira Code',monospace;font-size:22px;font-weight:600;line-height:1}
+  .cstat .k{font-size:11px;color:var(--muted);margin-top:3px}
+  .cstat.off .n{color:var(--off5)} .cstat.on .n{color:#047857}
+  .sect{margin-top:16px}
+  .sect h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;display:flex;align-items:center;gap:7px;font-weight:700}
+  .sect h4 .sd{width:9px;height:9px;border-radius:50%}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;max-height:188px;overflow-y:auto;overflow-x:hidden;padding-right:4px}
+  .chip{font-size:11.5px;background:#F1F5F9;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:#334155;white-space:nowrap}
+  .chip.g{background:var(--first-soft);border-color:#6EE7B7;color:#065F46}
+  .chip.r{background:var(--last-soft);border-color:#FDA4AF;color:#9F1239}
+  .chip.a{background:var(--off1);border-color:var(--off2);color:#3730A3}
+  .note{background:#F8FAFC;border:1px solid var(--line);border-left:3px solid var(--doe);border-radius:9px;padding:10px 12px;font-size:12.5px;color:#334155;margin-top:14px}
+  .tierchip{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:999px}
+  .tc1{background:var(--t1s);color:#065F46}.tc2{background:var(--t2s);color:#92400E}.tc3{background:var(--t3s);color:#991B1B}
+  #tip{position:fixed;z-index:60;pointer-events:none;background:#0F172A;color:#fff;font-size:12px;padding:7px 10px;border-radius:8px;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);max-width:230px;opacity:0;transition:opacity .12s;line-height:1.45}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>NYC Charter Schools Calendar</h1>
+      <p class="hint">Click any date to see which schools are open, closed, or starting that day. Compares <b id="scN">54</b> charters to the NYC DoE calendar.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="School year">
+      <button class="tab" id="tab2025" role="tab" aria-selected="true">2025–26</button>
+      <button class="tab" id="tab2026" role="tab" aria-selected="false">2026–27</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="calhead">
+        <div class="ttl" id="calTitle"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="calbody"><div class="months" id="months"></div></div>
+    </section>
+    <aside class="card" id="panel"><div class="pad" id="panelBody"></div></aside>
+  </div>
+</div>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script>
+const D=window.APP_DATA;
+document.getElementById('scN').textContent=D.meta.schoolCount;
+const N=D.meta.schoolCount;
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WDAY=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DOW=['S','M','T','W','T','F','S'];
+
+function iso(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function parseISO(s){const[y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d));}
+function expand(a,b){const r=[];let c=parseISO(a),e=parseISO(b);while(c<=e){r.push(c.toISOString().slice(0,10));c=new Date(c.getTime()+864e5);}return r;}
+function nice(s){const d=parseISO(s);return MONTHS[d.getUTCMonth()].slice(0,3)+' '+d.getUTCDate()+', '+d.getUTCFullYear();}
+function weekdayName(s){return WDAY[parseISO(s).getUTCDay()];}
+
+// per-school closed sets + first/last day maps
+const CLOSED={}, FIRSTBY={}, LASTBY={};
+D.schools.forEach(s=>{
+  CLOSED[s.slug]=new Set(s.closedDates);
+  if(s.firstDay){(FIRSTBY[s.firstDay]=FIRSTBY[s.firstDay]||[]).push(s.name);}
+  if(s.lastDay){(LASTBY[s.lastDay]=LASTBY[s.lastDay]||[]).push(s.name);}
+});
+// DoE sets
+function doeSets(key){const ev=D.doe[key],closed={},remote={},weekend={},name={};
+  ev.events.forEach(([nm,s,e,kind])=>expand(s,e).forEach(d=>{name[d]=nm;if(kind==='remote')remote[d]=1;else if(kind==='weekend')weekend[d]=1;else closed[d]=1;}));
+  return {ev,closed,remote,weekend,name};}
+const DOE25=doeSets('2025'),DOE26=doeSets('2026');
+const PRED={};D.predict2026.forEach(p=>expand(p.start,p.end).forEach(d=>PRED[d]=p));
+
+// buckets for a 2025-26 weekday
+function buckets(dstr){
+  const closed=[],open=[],pre=[],post=[];
+  for(const s of D.schools){
+    if(s.firstDay && dstr<s.firstDay){pre.push(s.name);continue;}
+    if(s.lastDay && dstr>s.lastDay){post.push(s.name);continue;}
+    (CLOSED[s.slug].has(dstr)?closed:open).push(s.name);
+  }
+  return {closed,open,pre,post};
+}
+function offClass(n){if(!n)return'';const p=n/N;return p<=.15?'o1':p<=.35?'o2':p<=.6?'o3':p<=.85?'o4':'o5';}
+
+let state={tab:'2025',sel:null};
+
+/* tooltip */
+const tip=document.getElementById('tip');
+function showTip(h,x,y){tip.innerHTML=h;tip.style.opacity='1';const r=tip.getBoundingClientRect();let nx=x+14,ny=y+14;if(nx+r.width>innerWidth-8)nx=x-r.width-14;if(ny+r.height>innerHeight-8)ny=y-r.height-14;tip.style.left=nx+'px';tip.style.top=ny+'px';}
+function hideTip(){tip.style.opacity='0';}
+
+function monthSeq(){return state.tab==='2025'
+  ?[[2025,7],[2025,8],[2025,9],[2025,10],[2025,11],[2026,0],[2026,1],[2026,2],[2026,3],[2026,4],[2026,5]]
+  :[[2026,7],[2026,8],[2026,9],[2026,10],[2026,11],[2027,0],[2027,1],[2027,2],[2027,3],[2027,4],[2027,5]];}
+
+function cellInfo(dstr){
+  const dt=parseISO(dstr),we=(dt.getUTCDay()===0||dt.getUTCDay()===6);
+  const cls=[],marks=[];let badge=null,clk=false,tipL=['<b>'+weekdayName(dstr)+', '+nice(dstr)+'</b>'];
+  if(we){cls.push('we');return {cls,marks,badge,clk:false,tip:''};}
+  if(state.tab==='2025'){
+    const b=buckets(dstr);
+    if(b.closed.length){cls.push(offClass(b.closed.length));badge=b.closed.length;tipL.push(b.closed.length+' of '+N+' schools closed');}
+    else tipL.push('All '+N+' schools in session');
+    if(DOE25.closed[dstr]){cls.push('doe');marks.push('<span class="ddot"></span>');tipL.push('DoE closed — '+DOE25.name[dstr]);}
+    const f=FIRSTBY[dstr],l=LASTBY[dstr];
+    if(f&&l)marks.push('<span class="mk firstlast"></span>');
+    else if(f)marks.push('<span class="mk first"></span>');
+    else if(l)marks.push('<span class="mk last"></span>');
+    if(f)tipL.push('▸ First day for '+f.length+' school'+(f.length>1?'s':''));
+    if(l)tipL.push('▸ Last day for '+l.length+' school'+(l.length>1?'s':''));
+    clk=true;
+  } else {
+    const p=PRED[dstr];
+    if(DOE26.closed[dstr]&&p){cls.push('pt'+p.tier);if(p.predictedPct!=null){badge='~'+Math.round(p.predictedPct/100*N);}tipL.push('DoE: '+DOE26.name[dstr]);tipL.push('Predicted '+(p.predictedPct==null?'unknown':p.predictedPct+'% of charters closed'));clk=true;}
+    else if(DOE26.remote[dstr]){cls.push('pt3');tipL.push('DoE: '+DOE26.name[dstr]);tipL.push('Remote / in session');clk=true;}
+    else if(DOE26.weekend[dstr]){cls.push('pweek');tipL.push(DOE26.name[dstr]+' — weekend');clk=true;}
+    if(dstr===DOE26.ev.firstDay){marks.push('<span class="mk first"></span>');tipL.push('▸ DoE first day');clk=true;}
+    if(dstr===DOE26.ev.lastDay){marks.push('<span class="mk last"></span>');tipL.push('▸ DoE last day');clk=true;}
+  }
+  return {cls,marks,badge,clk,tip:tipL.join('<br>')};
+}
+
+function render(){
+  document.getElementById('calTitle').textContent=state.tab==='2025'
+    ?'August 2025 → June 2026 · actual charter calendars'
+    :'August 2026 → June 2027 · DoE calendar + predicted charters';
+  renderLegend();
+  const root=document.getElementById('months');root.innerHTML='';
+  monthSeq().forEach(([y,m])=>{
+    const first=new Date(Date.UTC(y,m,1)),sd=first.getUTCDay(),dim=new Date(Date.UTC(y,m+1,0)).getUTCDate();
+    const el=document.createElement('div');el.className='month';
+    let h='<div class="mh"><span>'+MONTHS[m]+'</span><span class="yr">'+y+'</span></div><div class="dow">'+DOW.map(d=>'<span>'+d+'</span>').join('')+'</div><div class="days">';
+    for(let i=0;i<sd;i++)h+='<div class="day out"></div>';
+    for(let d=1;d<=dim;d++){const ds=iso(y,m,d),ci=cellInfo(ds);
+      h+='<div class="day '+ci.cls.join(' ')+(ci.clk?' clk':'')+(state.sel===ds?' sel':'')+'" data-d="'+ds+'"'+(ci.clk?' tabindex="0" role="button"':'')+'>'+(ci.badge!=null?'<span class="cnt">'+ci.badge+'</span>':'')+ci.marks.join('')+d+'</div>';}
+    h+='</div>';el.innerHTML=h;root.appendChild(el);
+  });
+  root.querySelectorAll('.day:not(.out):not(.we)').forEach(node=>{
+    const ds=node.dataset.d;
+    node.addEventListener('mousemove',e=>{const ci=cellInfo(ds);if(ci.tip)showTip(ci.tip,e.clientX,e.clientY);});
+    node.addEventListener('mouseleave',hideTip);
+    node.addEventListener('click',()=>select(ds));
+    node.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(ds);}});
+  });
+  if(!state.sel)renderHint();
+}
+
+function renderLegend(){
+  const L=document.getElementById('legend');
+  if(state.tab==='2025'){
+    L.innerHTML='<div class="lg"><span>Schools closed:</span><span class="scalebar"><span class="lgsw" style="background:var(--off1)"></span><span class="lgsw" style="background:var(--off2)"></span><span class="lgsw" style="background:var(--off3)"></span><span class="lgsw" style="background:var(--off4)"></span><span class="lgsw" style="background:var(--off5)"></span></span><span>few → many</span></div>'
+      +'<div class="lg"><span class="lgsw" style="box-shadow:inset 0 0 0 2px var(--doe);background:#fff"></span>DoE closed</div>'
+      +'<div class="lg"><span class="lgsw" style="background:var(--first)"></span>A school\'s first day</div>'
+      +'<div class="lg"><span class="lgsw" style="background:var(--last)"></span>A school\'s last day</div>';
+  } else {
+    L.innerHTML='<div class="lg"><span class="lgsw" style="background:var(--t1s);box-shadow:inset 0 0 0 2px var(--t1)"></span>Tier 1 — assume same as DoE</div>'
+      +'<div class="lg"><span class="lgsw" style="background:var(--t2s);box-shadow:inset 0 0 0 2px var(--t2)"></span>Tier 2 — likely</div>'
+      +'<div class="lg"><span class="lgsw" style="background:var(--t3s);box-shadow:inset 0 0 0 2px var(--t3)"></span>Tier 3 — verify per school</div>'
+      +'<div class="lg"><span class="lgsw" style="background:#F1F5F9;box-shadow:inset 0 0 0 1.5px #94A3B8"></span>Weekend / remote</div>';
+  }
+}
+
+function chips(list,cls){if(!list.length)return'<span style="color:#94A3B8;font-size:12px">None</span>';return '<div class="chips">'+list.slice().sort().map(n=>'<span class="chip '+cls+'">'+n+'</span>').join('')+'</div>';}
+
+function select(ds){
+  state.sel=ds;
+  document.querySelectorAll('.day.sel').forEach(n=>n.classList.remove('sel'));
+  document.querySelectorAll('.day[data-d="'+ds+'"]').forEach(n=>n.classList.add('sel'));
+  const b=document.getElementById('panelBody');
+  let h='<div class="dweek">'+weekdayName(ds)+'</div><div class="ddate">'+nice(ds)+'</div>';
+  if(state.tab==='2025'){
+    const bk=buckets(ds),doe=DOE25.closed[ds];
+    h+='<div class="doepill '+(doe?'closed':'open')+'"><span class="pdot" style="background:'+(doe?'var(--doe)':'#10B981')+'"></span>'+(doe?'DoE closed — '+DOE25.name[ds]:'DoE in session')+'</div>';
+    h+='<div class="counts"><div class="cstat on"><div class="n">'+bk.open.length+'</div><div class="k">in session</div></div><div class="cstat off"><div class="n">'+bk.closed.length+'</div><div class="k">closed</div></div>'
+      +(bk.pre.length?'<div class="cstat"><div class="n">'+bk.pre.length+'</div><div class="k">not started</div></div>':'')
+      +(bk.post.length?'<div class="cstat"><div class="n">'+bk.post.length+'</div><div class="k">year ended</div></div>':'')+'</div>';
+    const f=FIRSTBY[ds],l=LASTBY[ds];
+    if(f)h+='<div class="sect"><h4><span class="sd" style="background:var(--first)"></span>First day of school · '+f.length+'</h4>'+chips(f,'g')+'</div>';
+    if(l)h+='<div class="sect"><h4><span class="sd" style="background:var(--last)"></span>Last day of school · '+l.length+'</h4>'+chips(l,'r')+'</div>';
+    h+='<div class="sect"><h4><span class="sd" style="background:var(--off5)"></span>Closed today · '+bk.closed.length+'</h4>'+chips(bk.closed,'a')+'</div>';
+    h+='<div class="sect"><h4><span class="sd" style="background:#10B981"></span>Open today · '+bk.open.length+'</h4>'+chips(bk.open,'')+'</div>';
+  } else {
+    const p=PRED[ds];
+    if(p){
+      const tn=['','Tier 1 — assume same as DoE','Tier 2 — likely','Tier 3 — verify per school'][p.tier];
+      h+='<div class="doepill closed"><span class="pdot" style="background:var(--doe)"></span>DoE: '+DOE26.name[ds]+'</div>';
+      h+='<div class="counts"><div class="cstat off"><div class="n">'+(p.predictedPct==null?'?':p.predictedPct+'%')+'</div><div class="k">predicted closed</div></div><div class="cstat"><div class="n">'+(p.predictedPct==null?'?':'~'+Math.round(p.predictedPct/100*N))+'</div><div class="k">≈ schools</div></div></div>';
+      h+='<div class="sect"><span class="tierchip tc'+p.tier+'">'+tn+'</span></div>';
+      if(p.analogPct!=null)h+='<div class="note" style="border-left-color:#94A3B8">In 2025-26, <b>'+p.analogPct+'%</b> of charters were actually closed on this holiday.</div>';
+      h+='<div class="note">'+p.note+'</div>';
+    } else if(DOE26.weekend[ds]){
+      h+='<div class="doepill open"><span class="pdot" style="background:#94A3B8"></span>'+DOE26.name[ds]+'</div><div class="note">Falls on a weekend in 2026-27, so it is not a school closure.</div>';
+    } else if(ds===DOE26.ev.firstDay){
+      h+='<div class="doepill closed"><span class="pdot" style="background:var(--first)"></span>DoE first day of school</div><div class="note">Most charters start <b>earlier</b> than the DoE — typically late August (2025-26 median: Aug 25).</div>';
+    } else if(ds===DOE26.ev.lastDay){
+      h+='<div class="doepill closed"><span class="pdot" style="background:var(--last)"></span>DoE last day of school</div><div class="note">Charter last days vary; in 2025-26 all ended on or before the DoE\'s last day.</div>';
+    }
+  }
+  b.innerHTML=h;
+}
+function renderHint(){document.getElementById('panelBody').innerHTML='<div class="phint"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>Pick any date on the calendar to see which schools are open, closed, or starting that day.</div>';}
+
+function setTab(t){state.tab=t;state.sel=null;
+  document.getElementById('tab2025').setAttribute('aria-selected',t==='2025');
+  document.getElementById('tab2026').setAttribute('aria-selected',t==='2026');
+  render();}
+document.getElementById('tab2025').addEventListener('click',()=>setTab('2025'));
+document.getElementById('tab2026').addEventListener('click',()=>setTab('2026'));
+setTab('2025');
+</script>
+</body>
+</html>
