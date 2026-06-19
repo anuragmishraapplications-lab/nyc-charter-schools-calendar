@@ -163,7 +163,7 @@
 </div>
 <div id="tip" role="status" aria-live="polite"></div>
 
-<script src="data.js"></script>
+<script src="data.js?v=2"></script>
 <script>
 const D=window.APP_DATA;
 document.getElementById('scN').textContent=D.meta.schoolCount;
@@ -186,8 +186,24 @@ const CLOSED={}, FIRSTBY={}, LASTBY={};
 D.schools.forEach(s=>{CLOSED[s.slug]=new Set(s.closedDates);});
 // organization groups (preserve a sensible display order)
 const ORG_ORDER=['KIPP','Ascend','Uncommon','Brooklyn Prospect','Democracy Prep','DREAM','Hebrew Public','Capital Prep','East Harlem Scholars','Integration','Independent'];
+// resilient: prefer the org from data, else derive it from the slug (survives a stale data.js)
+function orgOf(s){
+  if(s.org) return s.org;
+  const g=s.slug||'';
+  if(/^kipp-/.test(g))return'KIPP';
+  if(/ascend-charter/.test(g))return'Ascend';
+  if(/^brooklyn-prospect/.test(g))return'Brooklyn Prospect';
+  if(/^capital-prep/.test(g))return'Capital Prep';
+  if(/democracy-prep|democracy-preparatory/.test(g))return'Democracy Prep';
+  if(/^dream-charter/.test(g))return'DREAM';
+  if(/east-harlem-scholars/.test(g))return'East Harlem Scholars';
+  if(/hebrew-language|staten-island-hebrew/.test(g))return'Hebrew Public';
+  if(/collegiate|leadership-prep|excellence|ocean-hill/.test(g))return'Uncommon';
+  if(/lavelle|new-ventures|richmond-prep/.test(g))return'Integration';
+  return'Independent';
+}
 const ORGS={};
-D.schools.forEach(s=>{(ORGS[s.org]=ORGS[s.org]||[]).push(s);});
+D.schools.forEach(s=>{const o=orgOf(s);(ORGS[o]=ORGS[o]||[]).push(s);});
 const ORG_KEYS=ORG_ORDER.filter(o=>ORGS[o]);
 // rebuild first/last-day maps for the currently active (filtered) schools
 function buildFirstLast(){
