@@ -226,10 +226,16 @@ function computeBrk(o){const s=new Set();['thx','winter','feb','spring'].forEach
 const SUB=SUB_ALL.filter(o=>o.complete).map(o=>({...o,brk:computeBrk(o)}));  // charted (full key dates)
 const SUBN=SUB.length;
 const SUB_PENDING=SUB_ALL.filter(o=>!o.complete).map(o=>o.org);             // submitted, dates incomplete
+let filter26=null;  // null = all submitted orgs; else a Set of active org names
+function activeSub(){return filter26?SUB.filter(o=>filter26.has(o.org)):SUB;}
 const ORGFIRST26={},ORGLAST26={};
-SUB.forEach(o=>{(ORGFIRST26[o.first]=ORGFIRST26[o.first]||[]).push(o.org);(ORGLAST26[o.last]=ORGLAST26[o.last]||[]).push(o.org);});
+function buildFirstLast26(){
+  for(const k in ORGFIRST26)delete ORGFIRST26[k];
+  for(const k in ORGLAST26)delete ORGLAST26[k];
+  activeSub().forEach(o=>{(ORGFIRST26[o.first]=ORGFIRST26[o.first]||[]).push(o.org);(ORGLAST26[o.last]=ORGLAST26[o.last]||[]).push(o.org);});
+}
 function subBuckets(ds){const inS=[],onB=[],pre=[],post=[];
-  for(const o of SUB){
+  for(const o of activeSub()){
     if(ds<o.first){pre.push(o.org);continue;}
     if(ds>o.last){post.push(o.org);continue;}
     if(o.brk.has(ds)){onB.push(o.org);continue;}
@@ -292,10 +298,10 @@ function cellInfo(dstr){
     clk=true;
   } else {
     const bk=subBuckets(dstr),st=doeState(dstr,DOE26);
-    if(bk.onBreak.length){cls.push(offClass(bk.onBreak.length));badge=bk.onBreak.length;tipL.push(bk.onBreak.length+' of '+SUBN+' orgs on break/closed'+(bk.inSession.length?', '+bk.inSession.length+' in session':''));}
+    if(bk.onBreak.length){cls.push(offClass(bk.onBreak.length));badge=bk.onBreak.length;tipL.push(bk.onBreak.length+' of '+N+' orgs on break/closed'+(bk.inSession.length?', '+bk.inSession.length+' in session':''));}
     else if(bk.inSession.length)tipL.push(bk.inSession.length+' orgs in session');
-    else if(bk.pre.length===SUBN)tipL.push('No charter in session yet (summer)');
-    else if(bk.post.length===SUBN)tipL.push('All charter school years have ended');
+    else if(bk.pre.length===N)tipL.push('No charter in session yet (summer)');
+    else if(bk.post.length===N)tipL.push('All charter school years have ended');
     if(st==='closed'){cls.push('doe');marks.push('<span class="ddot"></span>');tipL.push('DoE closed — '+DOE26.name[dstr]);}
     else if(st==='remote')tipL.push('DoE: '+DOE26.name[dstr]+' (remote/in session)');
     else if(st==='pre')tipL.push('DoE: summer break');
@@ -314,12 +320,13 @@ function cellInfo(dstr){
 }
 
 function render(){
-  N = state.tab==='2025' ? activeSchools().length : SUBN;
-  buildFirstLast();
+  if(state.tab==='2025'){N=activeSchools().length;buildFirstLast();}
+  else{N=activeSub().length;buildFirstLast26();}
   let title = state.tab==='2025'
     ? 'August 2025 → June 2026 · actual charter calendars'
     : 'August 2026 → June 2027 · SY26-27 calendars submitted so far';
   if(state.tab==='2025' && filter) title += ' · '+filter.size+' of '+TOTAL+' schools';
+  if(state.tab==='2026' && filter26) title += ' · '+filter26.size+' of '+SUBN+' orgs';
   document.getElementById('calTitle').textContent=title;
   renderLegend();
   const root=document.getElementById('months');root.innerHTML='';
@@ -404,7 +411,7 @@ function select(ds){
     if(ol)h+='<div class="sect"><h4><span class="sd" style="background:var(--last)"></span>Last day of school · '+ol.length+'</h4>'+chips(ol,'r')+'</div>';
     if(bk.onBreak.length)h+='<div class="sect"><h4><span class="sd" style="background:var(--off5)"></span>On break / closed · '+bk.onBreak.length+'</h4>'+chips(bk.onBreak,'a')+'</div>';
     h+='<div class="sect"><h4><span class="sd" style="background:#10B981"></span>In session · '+bk.inSession.length+'</h4>'+chips(bk.inSession,'')+'</div>';
-    h+='<div class="note" style="border-left-color:var(--doe)">From <b>'+SUBN+'</b> orgs that submitted SY26-27 key dates (first/last day + Thanksgiving, winter, mid-winter & spring breaks).</div>';
+    h+='<div class="note" style="border-left-color:var(--doe)">From <b>'+N+'</b> org'+(N===1?'':'s')+' that submitted SY26-27 key dates (first/last day + Thanksgiving, winter, mid-winter & spring breaks).</div>';
   }
   b.innerHTML=h;
 }
@@ -416,36 +423,44 @@ function renderHint(){
       +'<div class="counts" style="margin-top:8px"><div class="cstat on"><div class="n">'+SUB_ALL.length+'</div><div class="k">of 37 submitted</div></div><div class="cstat off"><div class="n">'+nr.length+'</div><div class="k">awaiting</div></div></div>'
       +'<div class="sect"><h4><span class="sd" style="background:var(--last)"></span>Not yet submitted · '+nr.length+'</h4>'+chips(nr,'r')+'</div>'
       +(SUB_PENDING.length?'<div class="sect"><h4><span class="sd" style="background:var(--off3)"></span>Submitted, dates still being parsed · '+SUB_PENDING.length+'</h4>'+chips(SUB_PENDING,'')+'</div>':'')
-      +'<div class="note">Click any date to see which organizations are in session or on break. The calendar reflects the '+SUBN+' orgs with full key dates.</div>';
+      +'<div class="note">Click any date to see which organizations are in session or on break. Use the filter to focus on specific organizations. The calendar reflects '+activeSub().length+' of '+SUBN+' orgs with full key dates.</div>';
   } else {
     b.innerHTML='<div class="phint"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>Pick any date on the calendar to see which schools are open, closed, or starting that day.</div>';
   }
 }
 
 /* ---------- organization / school filter ---------- */
+function setCurFilter(v){if(state.tab==='2026')filter26=v;else filter=v;}
 function renderFilter(){
   const w=document.getElementById('filterWrap');
-  if(state.tab!=='2025'){w.innerHTML='';return;}
-  let rows='';
-  ORG_KEYS.forEach(org=>{
-    const list=ORGS[org];
-    rows+='<div class="forg"><label class="frow org"><input type="checkbox" data-org="'+org+'"><span>'+(org==='Independent'?'Independent schools':org)+'</span><span class="ct">'+list.length+'</span></label>';
-    list.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{
-      rows+='<label class="frow sch"><input type="checkbox" data-slug="'+s.slug+'"><span>'+s.name+'</span></label>';
+  let rows='', head;
+  if(state.tab==='2025'){
+    head='Filter by organization or school';
+    ORG_KEYS.forEach(org=>{
+      const list=ORGS[org];
+      rows+='<div class="forg"><label class="frow org"><input type="checkbox" data-org="'+org+'"><span>'+(org==='Independent'?'Independent schools':org)+'</span><span class="ct">'+list.length+'</span></label>';
+      list.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{
+        rows+='<label class="frow sch"><input type="checkbox" data-slug="'+s.slug+'"><span>'+s.name+'</span></label>';
+      });
+      rows+='</div>';
     });
-    rows+='</div>';
-  });
+  } else {  // 2026: filter the submitted organizations
+    head='Filter organizations (SY26-27 submitted)';
+    SUB.slice().sort((a,b)=>a.org.localeCompare(b.org)).forEach(o=>{
+      rows+='<label class="frow org"><input type="checkbox" data-sub="'+o.org+'"><span>'+o.org+'</span></label>';
+    });
+  }
   w.innerHTML='<button class="fbtn" id="filterBtn" aria-haspopup="true" aria-expanded="false">'
     +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16M7 12h10M10 20h4"/></svg>'
     +'<span id="filterLabel"></span>'
     +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>'
-    +'<div class="fpanel" id="filterPanel" hidden><div class="fhd"><span>Filter by organization or school</span><div class="factions"><button class="fmini" id="filterClear">Clear</button><button class="freset" id="filterReset">Reset</button></div></div><div class="flist">'+rows+'</div></div>';
+    +'<div class="fpanel" id="filterPanel" hidden><div class="fhd"><span>'+head+'</span><div class="factions"><button class="fmini" id="filterClear">Clear</button><button class="freset" id="filterReset">Reset</button></div></div><div class="flist">'+rows+'</div></div>';
   document.getElementById('filterBtn').addEventListener('click',e=>{e.stopPropagation();toggleFilterPanel();});
   const panel=document.getElementById('filterPanel');
   panel.addEventListener('click',e=>e.stopPropagation());
   panel.addEventListener('change',onFilterChange);
-  document.getElementById('filterReset').addEventListener('click',()=>{filter=null;updateFilterUI();render();if(state.sel)select(state.sel);});
-  document.getElementById('filterClear').addEventListener('click',()=>{filter=new Set();updateFilterUI();render();if(state.sel)select(state.sel);});
+  document.getElementById('filterReset').addEventListener('click',()=>{setCurFilter(null);updateFilterUI();render();if(state.sel)select(state.sel);});
+  document.getElementById('filterClear').addEventListener('click',()=>{setCurFilter(new Set());updateFilterUI();render();if(state.sel)select(state.sel);});
   updateFilterUI();
 }
 function toggleFilterPanel(){
@@ -457,27 +472,40 @@ function closeFilterPanel(){const p=document.getElementById('filterPanel');if(p&
 document.addEventListener('click',closeFilterPanel);
 function onFilterChange(e){
   const t=e.target; if(!t.matches('input')) return;
-  if(filter===null) filter=new Set(D.schools.map(s=>s.slug));
-  if(t.dataset.org){
-    const slugs=ORGS[t.dataset.org].map(s=>s.slug);
-    if(t.checked) slugs.forEach(s=>filter.add(s)); else slugs.forEach(s=>filter.delete(s));
-  } else if(t.dataset.slug){
-    if(t.checked) filter.add(t.dataset.slug); else filter.delete(t.dataset.slug);
+  if(state.tab==='2026'){
+    if(filter26===null) filter26=new Set(SUB.map(o=>o.org));
+    if(t.dataset.sub){ if(t.checked)filter26.add(t.dataset.sub); else filter26.delete(t.dataset.sub); }
+    if(filter26.size>=SUBN) filter26=null;
+  } else {
+    if(filter===null) filter=new Set(D.schools.map(s=>s.slug));
+    if(t.dataset.org){
+      const slugs=ORGS[t.dataset.org].map(s=>s.slug);
+      if(t.checked) slugs.forEach(s=>filter.add(s)); else slugs.forEach(s=>filter.delete(s));
+    } else if(t.dataset.slug){
+      if(t.checked) filter.add(t.dataset.slug); else filter.delete(t.dataset.slug);
+    }
+    if(filter.size>=TOTAL) filter=null;
   }
-  if(filter.size>=TOTAL) filter=null;
   updateFilterUI(); render(); if(state.sel) select(state.sel);
 }
 function updateFilterUI(){
   const label=document.getElementById('filterLabel'); if(!label) return;
-  const sel = filter ? filter : new Set(D.schools.map(s=>s.slug));
-  label.textContent = filter ? (filter.size===0?'No schools':filter.size+' of '+TOTAL+' schools') : ('All '+TOTAL+' schools');
-  document.getElementById('filterBtn').classList.toggle('active', !!filter);
   const panel=document.getElementById('filterPanel');
-  panel.querySelectorAll('input[data-slug]').forEach(cb=>{cb.checked=sel.has(cb.dataset.slug);});
-  panel.querySelectorAll('input[data-org]').forEach(cb=>{
-    const slugs=ORGS[cb.dataset.org].map(s=>s.slug), on=slugs.filter(s=>sel.has(s)).length;
-    cb.checked=on===slugs.length; cb.indeterminate=on>0&&on<slugs.length;
-  });
+  if(state.tab==='2026'){
+    const sel = filter26 ? filter26 : new Set(SUB.map(o=>o.org));
+    label.textContent = filter26 ? (filter26.size===0?'No orgs':filter26.size+' of '+SUBN+' orgs') : ('All '+SUBN+' orgs');
+    document.getElementById('filterBtn').classList.toggle('active', !!filter26);
+    panel.querySelectorAll('input[data-sub]').forEach(cb=>{cb.checked=sel.has(cb.dataset.sub);});
+  } else {
+    const sel = filter ? filter : new Set(D.schools.map(s=>s.slug));
+    label.textContent = filter ? (filter.size===0?'No schools':filter.size+' of '+TOTAL+' schools') : ('All '+TOTAL+' schools');
+    document.getElementById('filterBtn').classList.toggle('active', !!filter);
+    panel.querySelectorAll('input[data-slug]').forEach(cb=>{cb.checked=sel.has(cb.dataset.slug);});
+    panel.querySelectorAll('input[data-org]').forEach(cb=>{
+      const slugs=ORGS[cb.dataset.org].map(s=>s.slug), on=slugs.filter(s=>sel.has(s)).length;
+      cb.checked=on===slugs.length; cb.indeterminate=on>0&&on<slugs.length;
+    });
+  }
 }
 
 function setTab(t){state.tab=t;state.sel=null;
